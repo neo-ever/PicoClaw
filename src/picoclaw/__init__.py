@@ -14,12 +14,15 @@ from .providers import (
     ProviderRateLimitError,
     ProviderRequestError,
 )
-from .tools import Tool, ToolRegistry
-from .workspace import Workspace
+from .run_store import RunHandle, RunStore
+from .tools import ApprovalMode, Approver, RiskLevel, Tool, ToolRegistry
+from .workspace import Workspace, WorkspaceViolation
 
 __all__ = [
     "Agent",
     "AgentResult",
+    "ApprovalMode",
+    "Approver",
     "Message",
     "ModelProvider",
     "ModelResponse",
@@ -33,10 +36,14 @@ __all__ = [
     "ProviderProtocolError",
     "ProviderRateLimitError",
     "ProviderRequestError",
+    "RiskLevel",
+    "RunHandle",
+    "RunStore",
     "TokenUsage",
     "Tool",
     "ToolCall",
     "ToolRegistry",
     "ToolResult",
     "Workspace",
+    "WorkspaceViolation",
 ]

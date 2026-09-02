@@ -3,6 +3,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.pyc
+*.egg-info/
 .env
 .picoclaw/
-

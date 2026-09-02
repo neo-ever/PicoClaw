@@ -1,3 +1,0 @@
-[console_scripts]
-picoclaw-demo = picoclaw.demo:main
-picoclaw-real = picoclaw.real_demo:main

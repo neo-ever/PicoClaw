@@ -15,7 +15,8 @@ from .providers import (
     ProviderConfig,
     ProviderError,
 )
-from .tools import build_read_only_registry
+from .run_store import RunStore
+from .tools import build_coding_registry
 from .workspace import Workspace
 
 DEFAULT_PROMPT = (
@@ -29,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("prompt", nargs="*", help="Task for the coding agent")
     parser.add_argument("--cwd", default=".", help="Workspace root")
     parser.add_argument("--max-steps", type=int, default=4)
+    parser.add_argument(
+        "--approval",
+        choices=("ask", "auto", "never"),
+        default="ask",
+        help="Approval policy for write and execute tools",
+    )
     parser.add_argument(
         "--provider",
         choices=("openai", "ollama"),
@@ -50,7 +57,9 @@ def main() -> None:
     try:
         workspace = Workspace(Path(args.cwd))
         provider = build_provider(args.provider)
-        agent = Agent(provider, build_read_only_registry(workspace), max_steps=args.max_steps)
+        tools = build_coding_registry(workspace, approval_mode=args.approval)
+        run_store = RunStore(workspace.root / ".picoclaw" / "runs")
+        agent = Agent(provider, tools, max_steps=args.max_steps, run_store=run_store)
         result = agent.run(prompt)
     except (ValueError, ProviderError) as exc:
         raise SystemExit(f"PicoClaw error: {exc}") from exc
@@ -66,6 +75,8 @@ def main() -> None:
     print("\n=== Trace ===")
     for event in result.trace:
         print(f"- {event.kind}: {event.detail}")
+    if result.run_directory:
+        print(f"\nRun artifacts: {result.run_directory}")
 
 
 if __name__ == "__main__":

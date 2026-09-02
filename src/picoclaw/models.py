@@ -24,6 +24,7 @@ class ToolResult:
     name: str
     content: str
     is_error: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

@@ -8,7 +8,7 @@ PicoClaw 是一个用于学习和实践的本地 Coding Agent Runtime。
 用户请求 -> 模型决策 -> 结构化 ToolCall -> Runtime 校验并执行 -> ToolResult 回传 -> 最终回答
 ```
 
-## 当前阶段：M2 多模型 Provider
+## 当前阶段：M3 安全执行与可观测性
 
 - 统一 `ModelResponse`、`ToolCall` 和 `ToolResult`
 - 通过 `ModelProvider` 协议隔离具体模型厂商
@@ -21,6 +21,11 @@ PicoClaw 是一个用于学习和实践的本地 Coding Agent Runtime。
 - 从环境变量加载模型配置，并在日志表示中隐藏 API Key
 - 将模型错误归一为认证、连接、限流、请求和协议错误
 - 跨模型统一累计 Prompt、Completion 和 Total Token Usage
+- 为工具标注 `read_only`、`write`、`execute` 风险等级
+- 支持 `ask`、`auto`、`never` 三种审批策略
+- 支持工作区内原子 `write_file`
+- 支持无 Shell 解释器的白名单 `run_shell`
+- 将 Trace 追加写入 JSONL，并原子生成最终 Report
 
 ## 为什么从离线模型开始
 
@@ -33,6 +38,21 @@ uv sync
 uv run pytest -q
 uv run ruff check src tests
 uv run picoclaw-demo
+uv run picoclaw-m3-demo
+```
+
+M3交互演示会依次申请写文件和运行白名单命令。输入`y`批准，直接回车拒绝：
+
+```powershell
+uv run picoclaw-m3-demo --approval ask
+```
+
+运行工件保存在：
+
+```text
+.picoclaw/m3-demo-workspace/.picoclaw/runs/<run_id>/
+├── trace.jsonl
+└── report.json
 ```
 
 ## OpenAI-compatible 真实模型
@@ -57,6 +77,16 @@ $env:PICOCLAW_OLLAMA_MODEL="你的本地模型名"
 uv run picoclaw-real --provider ollama
 ```
 
+真实模型入口默认使用`--approval ask`。可显式选择：
+
+```powershell
+uv run picoclaw-real --approval never
+uv run picoclaw-real --approval ask
+uv run picoclaw-real --approval auto
+```
+
+`auto`仅建议在可丢弃、已隔离的测试工作区使用。
+
 Ollama 模型被要求返回下面两种格式之一：
 
 ```text
@@ -72,7 +102,7 @@ Ollama 模型被要求返回下面两种格式之一：
 | --- | --- |
 | M1 | 最小 Agent Loop、统一工具协议、只读工作区工具 |
 | M2（已完成） | OpenAI-compatible 原生 Function Calling 与 Ollama 文本协议回退 |
-| M3 | 工具风险等级、审批、写文件、Shell、Trace 与 Run Report |
+| M3（已完成） | 工具风险等级、审批、写文件、Shell、Trace 与 Run Report |
 | M4 | Token 感知上下文、三层记忆、文件哈希失效 |
 | M5 | 渐进式 Skills 与受控 MCP Adapter |
 | M6 | 有预算的 Goal Loop、Checkpoint、Verifier 与 Benchmark |
