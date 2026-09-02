@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "picoclaw"
+version = "0.1.0"
+description = "A small, safe, extensible coding-agent runtime built for learning."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=3.6.0",
+]
+
+[project.scripts]
+picoclaw-demo = "picoclaw.demo:main"
+picoclaw-real = "picoclaw.real_demo:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
