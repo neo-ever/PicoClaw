@@ -280,7 +280,9 @@ class OpenAICompatibleProvider:
             try:
                 arguments = json.loads(str(raw_arguments or "{}"))
             except json.JSONDecodeError as exc:
-                raise ProviderProtocolError(f"tool '{name}' returned malformed JSON arguments") from exc
+                raise ProviderProtocolError(
+                    f"tool '{name}' returned malformed JSON arguments"
+                ) from exc
         if not isinstance(arguments, dict):
             raise ProviderProtocolError(f"tool '{name}' arguments must be a JSON object")
 
@@ -410,7 +412,9 @@ class OllamaTextProvider:
             if exc.code == 429:
                 raise ProviderRateLimitError("Ollama rate limit reached") from exc
             if 400 <= exc.code < 500:
-                raise ProviderRequestError(f"Ollama rejected the request with HTTP {exc.code}") from exc
+                raise ProviderRequestError(
+                    f"Ollama rejected the request with HTTP {exc.code}"
+                ) from exc
             raise ProviderConnectionError(f"Ollama failed with HTTP {exc.code}") from exc
         try:
             data = json.loads(body)

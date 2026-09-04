@@ -23,9 +23,7 @@ def test_agent_reads_a_file_then_answers(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [
             ModelResponse(
-                tool_calls=(
-                    ToolCall("call-1", "read_file", {"path": "project.txt"}),
-                ),
+                tool_calls=(ToolCall("call-1", "read_file", {"path": "project.txt"}),),
                 usage=TokenUsage(prompt_tokens=10, completion_tokens=3, total_tokens=13),
             ),
             ModelResponse(

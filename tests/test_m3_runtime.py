@@ -121,7 +121,9 @@ def test_agent_persists_trace_and_report_for_successful_write(tmp_path: Path) ->
 
     assert result.run_directory is not None
     run_directory = Path(result.run_directory)
-    trace_lines = [json.loads(line) for line in (run_directory / "trace.jsonl").read_text().splitlines()]
+    trace_lines = [
+        json.loads(line) for line in (run_directory / "trace.jsonl").read_text().splitlines()
+    ]
     report = json.loads((run_directory / "report.json").read_text(encoding="utf-8"))
     assert [event["kind"] for event in trace_lines] == [
         "run_started",

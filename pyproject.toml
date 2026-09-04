@@ -9,12 +9,17 @@ description = "A small, safe, extensible coding-agent runtime built for learning
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "mcp>=2.1.1,<3",
     "openai>=3.6.0",
+    "tiktoken>=0.14.0",
 ]
 
 [project.scripts]
 picoclaw-demo = "picoclaw.demo:main"
 picoclaw-m3-demo = "picoclaw.m3_demo:main"
+picoclaw-m4-demo = "picoclaw.m4_demo:main"
+picoclaw-m5-demo = "picoclaw.m5_demo:main"
+picoclaw-m6-demo = "picoclaw.m6_demo:main"
 picoclaw-real = "picoclaw.real_demo:main"
 
 [dependency-groups]

@@ -52,7 +52,9 @@ class Tool:
 class Approver:
     """Apply one explicit policy to risky tool calls."""
 
-    def __init__(self, mode: ApprovalMode | str = ApprovalMode.NEVER, prompt: ApprovalPrompt = input):
+    def __init__(
+        self, mode: ApprovalMode | str = ApprovalMode.NEVER, prompt: ApprovalPrompt = input
+    ):
         self.mode = ApprovalMode(mode)
         self.prompt = prompt
 
@@ -96,6 +98,16 @@ class ToolRegistry:
 
     def schemas(self) -> list[dict[str, Any]]:
         return [tool.schema() for tool in self._tools.values()]
+
+    def identity_payload(self) -> dict[str, Any]:
+        """Stable security-relevant configuration used by checkpoint identity checks."""
+
+        return {
+            "approval_mode": self.approver.mode.value,
+            "tools": [
+                {"schema": tool.schema(), "risk": tool.risk.value} for tool in self._tools.values()
+            ],
+        }
 
     def execute(self, call: ToolCall) -> ToolResult:
         started_at = time.monotonic()

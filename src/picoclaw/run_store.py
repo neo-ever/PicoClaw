@@ -54,4 +54,3 @@ class RunStore:
             encoding="utf-8",
         )
         os.replace(temporary_path, handle.report_path)
-

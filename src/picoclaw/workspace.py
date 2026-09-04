@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 import subprocess
@@ -41,6 +42,16 @@ class Workspace:
         if not resolved_path.is_file():
             raise FileNotFoundError(f"file does not exist: {path}")
         return resolved_path.read_text(encoding="utf-8")
+
+    def sha256(self, path: str) -> str:
+        resolved_path = self.resolve(path)
+        if not resolved_path.is_file():
+            raise FileNotFoundError(f"file does not exist: {path}")
+        digest = hashlib.sha256()
+        with resolved_path.open("rb") as file:
+            for chunk in iter(lambda: file.read(64 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def write_text(self, path: str, content: str) -> str:
         """Atomically write a small UTF-8 file inside the workspace."""

@@ -50,3 +50,18 @@ ToolResult <--- ToolRegistry <------- canonical ModelResponse
 - Skill 只提供说明和受控资源，不能天然获得系统权限。
 - Goal Loop 必须有步数、时间、Token/费用和无进展停止条件。
 - Memory 中的文件事实必须绑定内容哈希，文件变化后需要失效或重新读取。
+
+## 7. M6 Goal Loop 数据流
+
+```text
+GoalRunner -> Agent.run(remaining budget) -> candidate answer
+    |                                      |
+    |                                      v
+    +---- retry feedback <- Verifier <- real Workspace
+    |
+    +---- TaskState + RuntimeIdentity + WorkspaceManifest -> Checkpoint
+    |
+    +---- isolated fixtures -> Benchmark report
+```
+
+最终成功状态只能由 Verifier 产生，模型回答本身不能将 Goal 标记为成功。

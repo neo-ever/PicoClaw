@@ -6,3 +6,7 @@ __pycache__/
 *.egg-info/
 .env
 .picoclaw/
+build/
+dist/
+.coverage
+htmlcov/
