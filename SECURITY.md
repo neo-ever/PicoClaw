@@ -19,4 +19,4 @@ PicoClaw 当前是本地学习原型，不应直接部署到不受信任的多�
 
 ## 报告问题
 
-公开仓库建立后，请通过 GitHub Security Advisory 私下报告可能导致路径逃逸、未授权命令执行、密钥泄漏或审批绕过的问题。不要在公开 Issue 中附带真实密钥或敏感仓库内容。
+请通过 [GitHub Security Advisory](https://github.com/neo-ever/PicoClaw/security/advisories/new) 私下报告可能导致路径逃逸、未授权命令执行、密钥泄漏或审批绕过的问题。不要在公开 Issue 中附带真实密钥或敏感仓库内容。

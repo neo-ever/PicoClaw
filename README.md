@@ -1,5 +1,8 @@
 # PicoClaw
 
+[![CI](https://github.com/neo-ever/PicoClaw/actions/workflows/ci.yml/badge.svg)](https://github.com/neo-ever/PicoClaw/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 PicoClaw 是一个用于学习和实践的本地 Coding Agent Runtime。
 
 项目不直接拼接 Pico 与 Learn-OpenClaw 的源码，而是重新实现一条清晰、可测试的最小链路：
@@ -13,7 +16,7 @@ PicoClaw 是一个用于学习和实践的本地 Coding Agent Runtime。
 环境要求：Python 3.12+ 与 [uv](https://docs.astral.sh/uv/)。
 
 ```powershell
-git clone <你的仓库地址>
+git clone https://github.com/neo-ever/PicoClaw.git
 cd PicoClaw
 uv sync --locked --dev
 uv run pytest -q
