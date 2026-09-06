@@ -8,6 +8,28 @@ PicoClaw 是一个用于学习和实践的本地 Coding Agent Runtime。
 用户请求 -> 模型决策 -> 结构化 ToolCall -> Runtime 校验并执行 -> ToolResult 回传 -> 最终回答
 ```
 
+## 快速开始
+
+环境要求：Python 3.12+ 与 [uv](https://docs.astral.sh/uv/)。
+
+```powershell
+git clone <你的仓库地址>
+cd PicoClaw
+uv sync --locked --dev
+uv run pytest -q
+uv run picoclaw-demo
+```
+
+不配置 API Key 也可以运行 M1、M3、M4、M5 和 M6 的确定性离线演示。真实模型配置见下文。
+
+## 项目定位
+
+| 是什么 | 不是什么 |
+| --- | --- |
+| 用于学习 Agent Runtime 关键机制的本地可运行实现 | 已上线的生产 Coding Agent |
+| 具有工具边界、审批、记忆、MCP、恢复与验收的原型 | 拥有真实用户规模或线上 SLA 的商业系统 |
+| 通过固定离线实验和自动化测试验证的工程项目 | 大模型训练或效果提升百分比实验 |
+
 ## 当前阶段：M6 预算化 Goal Loop、Checkpoint、Verifier 与 Benchmark
 
 - 统一 `ModelResponse`、`ToolCall` 和 `ToolResult`
@@ -171,3 +193,17 @@ Ollama 模型被要求返回下面两种格式之一：
 详细设计见 [docs/architecture.md](docs/architecture.md)。
 
 简历证据边界、推荐项目描述和高频追问见 [docs/interview-evidence.md](docs/interview-evidence.md)。本地发布检查记录见 [docs/validation-report.md](docs/validation-report.md)。
+
+## 文档导航
+
+| 文档 | 内容 |
+| --- | --- |
+| [架构决策](docs/architecture.md) | 总体边界和 M1–M6 数据流 |
+| [M4 上下文与记忆](docs/m4-context-and-memory.md) | Token 压缩、三层记忆、SHA 失效 |
+| [M5 Skills 与 MCP](docs/m5-skills-and-mcp.md) | 渐进式加载和受控外部工具 |
+| [M6 Goal Loop](docs/m6-goal-loop.md) | 预算、Checkpoint、Verifier、Benchmark |
+| [5 分钟演示脚本](docs/demo-script.md) | 面试或项目展示时的操作顺序 |
+| [简历与面试证据](docs/interview-evidence.md) | 事实边界、推荐措辞和追问答案 |
+| [本地验证记录](docs/validation-report.md) | 测试、构建和隔离安装结果 |
+
+贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全问题与密钥处理见 [SECURITY.md](SECURITY.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
