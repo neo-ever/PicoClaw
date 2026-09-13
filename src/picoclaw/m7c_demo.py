@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import uuid
@@ -113,10 +114,12 @@ class RepairProvider:
         )
 
 
-def build_synthetic_dataset(output: Path):
+def build_synthetic_dataset(output: Path, task_count: int = 12):
+    if task_count < 2:
+        raise ValueError("synthetic dataset requires at least two tasks")
     builder = DeltaDatasetBuilder(SyntheticOutcomeScorer(), "synthetic-code-fixture")
     examples = []
-    for index in range(12):
+    for index in range(task_count):
         candidates = [
             ContextChunk(
                 id=f"relevant-{index}",
@@ -151,10 +154,27 @@ def build_synthetic_dataset(output: Path):
     return train, validation, train_path, validation_path
 
 
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run the offline M7-C pipeline demo")
+    parser.add_argument(
+        "--task-count",
+        type=int,
+        default=12,
+        help="Number of synthetic tasks; each creates one positive and one negative pair",
+    )
+    return parser
+
+
 def main() -> None:
+    args = build_parser().parse_args()
+    if args.task_count < 2:
+        raise SystemExit("--task-count must be at least 2")
     demo_root = Path.cwd() / ".picoclaw" / f"m7c-demo-{uuid.uuid4().hex[:8]}"
     demo_root.mkdir(parents=True, exist_ok=False)
-    train, validation, train_path, validation_path = build_synthetic_dataset(demo_root)
+    train, validation, train_path, validation_path = build_synthetic_dataset(
+        demo_root,
+        task_count=args.task_count,
+    )
     linear_model = train_linear_delta(train)
     train_metrics = evaluate_linear_delta(linear_model, train)
     validation_metrics = evaluate_linear_delta(linear_model, validation)

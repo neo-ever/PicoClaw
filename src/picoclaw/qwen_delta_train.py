@@ -20,8 +20,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--gradient-accumulation", type=int, default=16)
+    parser.add_argument(
+        "--head-only",
+        action="store_true",
+        help="Freeze the Qwen backbone and train only the regression head",
+    )
     parser.add_argument("--seed", type=int, default=42)
     return parser
+
+
+def configure_trainable_parameters(model, head_only: bool) -> tuple[int, int]:
+    """Return trainable/total parameter counts after applying the chosen policy."""
+    parameters = list(model.named_parameters())
+    total = sum(parameter.numel() for _, parameter in parameters)
+    if not head_only:
+        for _, parameter in parameters:
+            parameter.requires_grad = True
+        return total, total
+
+    trainable = 0
+    for name, parameter in parameters:
+        parts = name.split(".")
+        is_output_head = "score" in parts or "classifier" in parts
+        parameter.requires_grad = is_output_head
+        if is_output_head:
+            trainable += parameter.numel()
+    if trainable == 0:
+        raise ValueError("could not locate a score/classifier output head")
+    return trainable, total
 
 
 def main() -> None:
@@ -84,7 +110,11 @@ def main() -> None:
     model.config.pad_token_id = tokenizer.pad_token_id
     if hasattr(model.config, "text_config"):
         model.config.text_config.pad_token_id = tokenizer.pad_token_id
-    if hasattr(model, "gradient_checkpointing_enable"):
+    trainable_parameters, total_parameters = configure_trainable_parameters(
+        model,
+        args.head_only,
+    )
+    if not args.head_only and hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
 
     def compute_metrics(evaluation) -> dict[str, float]:
@@ -121,7 +151,7 @@ def main() -> None:
         metric_for_best_model="sign_accuracy",
         greater_is_better=True,
         bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
-        gradient_checkpointing=True,
+        gradient_checkpointing=not args.head_only,
         # Qwen3.5's generic classifier exposes labels through **kwargs. Newer
         # Trainer versions therefore cannot infer the label field from the
         # forward signature unless it is declared explicitly.
@@ -146,6 +176,9 @@ def main() -> None:
         "objective": "direct_verifier_delta_regression",
         "train_examples": len(train_examples),
         "validation_examples": len(validation_examples),
+        "head_only": args.head_only,
+        "trainable_parameters": trainable_parameters,
+        "total_parameters": total_parameters,
         "train_metrics": train_result.metrics,
         "validation_metrics": metrics,
     }

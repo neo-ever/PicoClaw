@@ -30,6 +30,7 @@ from picoclaw import (
     write_delta_jsonl,
 )
 from picoclaw.qwen_delta_service import align_padding_config, validate_items
+from picoclaw.qwen_delta_train import configure_trainable_parameters
 from picoclaw.qwen_preflight import audit_datasets
 from picoclaw.tools import build_coding_registry
 
@@ -226,6 +227,28 @@ def test_qwen_service_aligns_padding_for_composite_model() -> None:
     assert align_padding_config(model, tokenizer) == 42
     assert model.config.pad_token_id == 42
     assert model.config.text_config.pad_token_id == 42
+
+
+def test_qwen_head_only_policy_freezes_backbone() -> None:
+    class Parameter:
+        def __init__(self, size):
+            self.size = size
+            self.requires_grad = True
+
+        def numel(self):
+            return self.size
+
+    backbone = Parameter(100)
+    head = Parameter(5)
+    model = SimpleNamespace(
+        named_parameters=lambda: iter([("model.layers.0.weight", backbone), ("score.weight", head)])
+    )
+
+    trainable, total = configure_trainable_parameters(model, head_only=True)
+
+    assert (trainable, total) == (5, 105)
+    assert backbone.requires_grad is False
+    assert head.requires_grad is True
 
 
 class PatchProvider:

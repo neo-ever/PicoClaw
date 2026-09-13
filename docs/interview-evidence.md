@@ -10,7 +10,7 @@
 
 | 证据 | 当前结果 | 复核方式 |
 | --- | --- | --- |
-| 自动化测试 | 本地 69 个测试通过 | `uv run pytest -q` |
+| 自动化测试 | 本地 71 个测试通过 | `uv run pytest -q` |
 | 静态检查 | Ruff check/format 通过 | `uv run ruff check src tests` |
 | 包构建 | sdist 与 Wheel 可构建 | `uv build` |
 | M4 记忆实验 | 相同文件问题的工具调用从 1 次变为 0 次；文件变化后重新读取 | `uv run picoclaw-m4-demo` |
@@ -46,7 +46,7 @@
 - 安全执行：构建集中式 ToolRegistry，对文件读写和开发命令执行实施 JSON Schema 参数校验、工作区路径边界、原子写入、命令白名单及 `ask/auto/never` 审批，并持久化 Trace 与 Run Report。
 - 上下文与扩展：实现 Token 感知的历史压缩和 Working/Episodic/Durable 三层记忆；在固定离线场景中将相同文件问题的重复读取由 1 次降至 0 次，并通过 SHA-256 在文件变化后使旧记忆失效；支持 Skill 按需加载与 allowlist MCP stdio Adapter。
 - 长任务可靠性：实现受尝试次数、模型步数、工具、Token、估算费用、时间和无进展轮数约束的 Goal Loop；通过 Runtime Identity、工作区文件 Manifest、独立 Verifier 和隔离 Benchmark 建立“失败—Checkpoint—恢复—外部验收”闭环。
-- 自适应上下文：实现安全代码切块及 Lexical、HTTP Delta、Linear Delta 和 Full Context 策略，通过候选初筛、批量评分、LRU 缓存、超时降级和 Evidence Token 预算减少无关上下文；建立 `picoclaw-delta-v1` Pair 数据与任务级切分，并在 5 策略 × 3 个确定性案例上生成统一 A/B 报告，项目本地 69 个测试通过。
+- 自适应上下文：实现安全代码切块及 Lexical、HTTP Delta、Linear Delta 和 Full Context 策略，通过候选初筛、批量评分、LRU 缓存、超时降级和 Evidence Token 预算减少无关上下文；建立 `picoclaw-delta-v1` Pair 数据与任务级切分，并在 5 策略 × 3 个确定性案例上生成统一 A/B 报告，项目本地 71 个测试通过。
 
 ## 5. 高风险面试问题与回答卡
 
@@ -87,4 +87,4 @@
 
 ## 6. 30 秒项目介绍
 
-PicoClaw 是我从零实现的本地 Coding Agent Runtime。模型只负责决策，Runtime 负责上下文、工具安全、记忆、审计和外部验收。针对大仓库，我又加入可替换 Context Selector，通过安全切块、词法初筛、批量 Delta 打分、缓存和降级，在 Token 预算内构造 Evidence；同时建立任务级 Pair 数据和多策略隔离 Benchmark。当前有 69 个自动化测试，真实 0.8B 微调仍待 GPU 与代码领域数据，不包装成生产效果。
+PicoClaw 是我从零实现的本地 Coding Agent Runtime。模型只负责决策，Runtime 负责上下文、工具安全、记忆、审计和外部验收。针对大仓库，我又加入可替换 Context Selector，通过安全切块、词法初筛、批量 Delta 打分、缓存和降级，在 Token 预算内构造 Evidence；同时建立任务级 Pair 数据和多策略隔离 Benchmark。当前有 71 个自动化测试，真实 0.8B 已完成 GPU 冒烟训练和批量服务，但 18/6 合成集 Sign Accuracy 仅 50%，不包装成效果提升。

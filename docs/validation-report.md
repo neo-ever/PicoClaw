@@ -44,13 +44,14 @@ M7-B 验证覆盖的是 HTTP 编排、批量、缓存、响应校验、网络安
 | --- | --- | --- |
 | 格式检查 | `uv run ruff format src tests --check` | 50 个文件格式正确 |
 | 静态检查 | `uv run ruff check src tests` | 通过 |
-| 自动化测试 | `uv run pytest -q` | 69 passed |
+| 自动化测试 | `uv run pytest -q` | 71 passed |
 | 数据隔离 | M7-C Demo grouped split | 18 train / 6 validation，任务交集 0 |
 | 轻量训练 | M7-C Linear Delta | 合成验证 Sign Accuracy 100%、MAE 0.0003、Pearson 1.0000 |
 | 策略对照 | `uv run picoclaw-m7c-demo` | 5 策略 × 3 隔离案例，外部 File Verifier 全部通过 |
 | 0.8B 资源审计 | `picoclaw-qwen-preflight` | uv 环境缺少训练依赖、无 NVIDIA GPU、无本地模型权重；数据 Schema/隔离/标签平衡通过，未运行真实微调 |
 | GPU 交接 | 可选依赖、Preflight CLI、操作清单 | 训练前依赖、CUDA、模型、数据泄漏和标签检查已可自动执行 |
 | AutoDL 首次实跑 | Qwen3.5-0.8B-Base，18/6 合成数据 | 训练完成 5/5 步；发现并修复 Transformers 5.17 未自动推断通用分类器 `labels` 的验证指标问题 |
+| AutoDL 批量推理 | Qwen3.5-0.8B-Base，2 条 Tensor Batch | 修复复合配置 PAD Token 后返回 2 个真实 Delta；首次模型 Sign Accuracy 为 50%，未达到质量目标 |
 
 合成 Linear 指标只证明训练与评测管道能发现刻意构造的相关代码块，不是 Qwen 指标，也不是公开 Coding Agent Benchmark 结果。
 
