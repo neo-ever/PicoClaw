@@ -65,3 +65,34 @@ GoalRunner -> Agent.run(remaining budget) -> candidate answer
 ```
 
 最终成功状态只能由 Verifier 产生，模型回答本身不能将 Goal 标记为成功。
+
+## 8. M7 Context Selection 与数据闭环
+
+```text
+Workspace -> RepositoryChunker -> Lexical candidate pool
+                                      |
+                 +--------------------+--------------------+
+                 |                    |                    |
+             Lexical            HTTP/Linear Delta       Full Context
+                 |                    |                    |
+                 +---------- ContextSelector -------------+
+                                      |
+                              Selected Evidence
+                                      |
+                              ContextManager -> Agent
+                                      |
+                              external Verifier outcome
+                                      |
+                     minus/plus Pair + direct delta label
+                                      |
+                        training -> /predict_delta_batch
+```
+
+架构约束：
+
+1. Selector 只有建议权，没有文件或命令工具权限。
+2. 候选代码块必须先由 Workspace 边界内的 Chunker 产生，远端不能返回任意路径。
+3. Evidence、Memory 和 History 使用独立语义与预算。
+4. HTTP 失败必须降级到本地策略，不能阻断 Agent Loop。
+5. 训练与在线服务共同使用 Direct Verifier Delta Prompt，不再混用答案 Logprob 与问题 Logprob。
+6. 数据按任务分组切分，策略对照在隔离工作区运行，并由相同外部 Verifier 判定。

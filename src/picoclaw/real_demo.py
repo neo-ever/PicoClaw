@@ -20,6 +20,14 @@ from .providers import (
     ProviderError,
 )
 from .run_store import RunStore
+from .selection import (
+    ChunkingConfig,
+    DirectDeltaHttpSelector,
+    HttpDeltaSelector,
+    HttpSelectorConfig,
+    LexicalSelector,
+    RepositoryEvidenceProvider,
+)
 from .skills import SkillCatalog
 from .task_state import GoalBudget, TokenPricing
 from .tools import build_coding_registry
@@ -37,6 +45,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cwd", default=".", help="Workspace root")
     parser.add_argument("--max-steps", type=int, default=4)
     parser.add_argument("--max-input-tokens", type=int, default=4096)
+    parser.add_argument(
+        "--evidence",
+        action="store_true",
+        help="Preselect relevant repository chunks before the first model turn",
+    )
+    parser.add_argument("--evidence-tokens", type=int, default=1200)
+    parser.add_argument("--chunk-tokens", type=int, default=320)
+    parser.add_argument(
+        "--evidence-selector",
+        choices=("lexical", "http", "http-direct"),
+        default="lexical",
+        help="Repository evidence ranking strategy",
+    )
+    parser.add_argument(
+        "--selector-url",
+        default=os.environ.get("PICOCLAW_SELECTOR_URL", "http://127.0.0.1:6006"),
+        help="Base URL of the 0.8B selector service",
+    )
+    parser.add_argument("--selector-timeout", type=float, default=8.0)
+    parser.add_argument("--selector-batch-size", type=int, default=8)
+    parser.add_argument("--selector-cache-size", type=int, default=2048)
+    parser.add_argument("--selector-candidate-pool", type=int, default=24)
+    parser.add_argument("--selector-min-delta", type=float, default=0.0)
+    parser.add_argument(
+        "--allow-remote-selector",
+        action="store_true",
+        help="Allow sending selected repository candidates to a non-loopback selector URL",
+    )
     parser.add_argument(
         "--skills-dir",
         default="skills",
@@ -103,10 +139,51 @@ def main() -> None:
         tools = build_coding_registry(workspace, approval_mode=args.approval)
         run_store = RunStore(workspace.root / ".picoclaw" / "runs")
         model_name = provider.config.model
+        token_counter = TokenCounter(model_name)
         context_manager = ContextManager(
-            TokenCounter(model_name),
-            ContextBudget(max_input_tokens=args.max_input_tokens),
+            token_counter,
+            ContextBudget(
+                max_input_tokens=args.max_input_tokens,
+                max_evidence_tokens=args.evidence_tokens,
+            ),
         )
+        evidence_provider = None
+        if args.evidence:
+            lexical_selector = LexicalSelector()
+            selector = lexical_selector
+            if args.evidence_selector == "http":
+                selector = HttpDeltaSelector(
+                    HttpSelectorConfig(
+                        base_url=args.selector_url,
+                        timeout_seconds=args.selector_timeout,
+                        batch_size=args.selector_batch_size,
+                        cache_entries=args.selector_cache_size,
+                        candidate_pool_size=args.selector_candidate_pool,
+                        min_delta=args.selector_min_delta,
+                        allow_remote=args.allow_remote_selector,
+                    ),
+                    fallback=lexical_selector,
+                )
+            elif args.evidence_selector == "http-direct":
+                selector = DirectDeltaHttpSelector(
+                    HttpSelectorConfig(
+                        base_url=args.selector_url,
+                        timeout_seconds=args.selector_timeout,
+                        batch_size=args.selector_batch_size,
+                        cache_entries=args.selector_cache_size,
+                        candidate_pool_size=args.selector_candidate_pool,
+                        min_delta=args.selector_min_delta,
+                        allow_remote=args.allow_remote_selector,
+                    ),
+                    fallback=lexical_selector,
+                )
+            evidence_provider = RepositoryEvidenceProvider(
+                workspace,
+                token_counter,
+                selector=selector,
+                token_budget=args.evidence_tokens,
+                chunking=ChunkingConfig(max_chunk_tokens=args.chunk_tokens),
+            )
         memory_manager = MemoryManager(workspace)
         skill_catalog = SkillCatalog([workspace.resolve(args.skills_dir)])
         agent = Agent(
@@ -117,6 +194,7 @@ def main() -> None:
             context_manager=context_manager,
             memory_manager=memory_manager,
             skill_catalog=skill_catalog,
+            evidence_provider=evidence_provider,
         )
         if args.verify_file:
             pricing = (

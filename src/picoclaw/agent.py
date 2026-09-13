@@ -10,6 +10,7 @@ from .context_manager import ContextManager, ContextSnapshot
 from .memory import MemoryManager
 from .models import Message, ModelProvider, TokenUsage, ToolResult
 from .run_store import RunHandle, RunStore, utc_now
+from .selection import EvidenceProvider, SelectionResult
 from .skills import SkillCatalog, SkillSelection
 from .tools import ToolRegistry
 
@@ -77,6 +78,7 @@ class Agent:
         context_manager: ContextManager | None = None,
         memory_manager: MemoryManager | None = None,
         skill_catalog: SkillCatalog | None = None,
+        evidence_provider: EvidenceProvider | None = None,
     ) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
@@ -87,6 +89,7 @@ class Agent:
         self.context_manager = context_manager
         self.memory_manager = memory_manager
         self.skill_catalog = skill_catalog
+        self.evidence_provider = evidence_provider
 
     def run(self, request: str, budget: AgentRunBudget | None = None) -> AgentResult:
         started_at = time.monotonic()
@@ -98,6 +101,7 @@ class Agent:
         model_steps = 0
         context_builds: list[ContextSnapshot] = []
         skill_selection: SkillSelection | None = None
+        evidence_selection: SelectionResult | None = None
         handle = self.run_store.start() if self.run_store is not None else None
 
         def emit(kind: str, detail: str, metadata: dict[str, Any] | None = None) -> None:
@@ -123,6 +127,67 @@ class Agent:
                         "loaded_chars": skill_selection.loaded_chars,
                     },
                 )
+            if self.evidence_provider is not None and self.context_manager is not None:
+                try:
+                    evidence_selection = self.evidence_provider.select(request)
+                    emit(
+                        "context_candidates_retrieved",
+                        f"candidates={evidence_selection.candidates}",
+                        {"candidates": evidence_selection.candidates},
+                    )
+                    if evidence_selection.fallback_used:
+                        emit(
+                            "context_selection_fallback",
+                            evidence_selection.fallback_reason or "unknown",
+                            {
+                                "selector": evidence_selection.selector,
+                                "reason": evidence_selection.fallback_reason,
+                            },
+                        )
+                    for rank, item in enumerate(evidence_selection.selected, start=1):
+                        emit(
+                            "context_chunk_selected",
+                            item.chunk.location,
+                            {
+                                "rank": rank,
+                                "chunk_id": item.chunk.id,
+                                "path": item.chunk.path,
+                                "start_line": item.chunk.start_line,
+                                "end_line": item.chunk.end_line,
+                                "source_sha256": item.chunk.source_sha256,
+                                "content_sha256": item.chunk.content_sha256,
+                                "tokens": item.chunk.token_count,
+                                "score": item.score,
+                                "relevance_score": item.relevance_score,
+                                "redundancy": item.redundancy,
+                            },
+                        )
+                    emit(
+                        "context_selection_finished",
+                        (
+                            f"selector={evidence_selection.selector}, "
+                            f"selected={len(evidence_selection.selected)}, "
+                            f"tokens={evidence_selection.selected_tokens}"
+                        ),
+                        {
+                            "selector": evidence_selection.selector,
+                            "selected": len(evidence_selection.selected),
+                            "selected_tokens": evidence_selection.selected_tokens,
+                            "token_budget": evidence_selection.token_budget,
+                            "elapsed_ms": evidence_selection.elapsed_ms,
+                            "cache_hits": evidence_selection.cache_hits,
+                            "cache_misses": evidence_selection.cache_misses,
+                            "http_requests": evidence_selection.http_requests,
+                            "fallback_used": evidence_selection.fallback_used,
+                            "fallback_reason": evidence_selection.fallback_reason,
+                        },
+                    )
+                except (OSError, UnicodeError, ValueError, RuntimeError) as exc:
+                    emit(
+                        "context_selection_failed",
+                        type(exc).__name__,
+                        {"error_type": type(exc).__name__},
+                    )
             step_limit = (
                 min(self.max_steps, budget.max_model_steps)
                 if budget is not None
@@ -150,6 +215,7 @@ class Agent:
                         messages,
                         memory_entries,
                         skill_instructions,
+                        evidence_selection.chunks if evidence_selection is not None else (),
                     )
                     context_builds.append(snapshot)
                     model_messages = snapshot.messages
@@ -166,6 +232,8 @@ class Agent:
                             "dropped_groups": snapshot.dropped_groups,
                             "memory_items": snapshot.memory_items,
                             "skill_items": snapshot.skill_items,
+                            "evidence_items": snapshot.evidence_items,
+                            "evidence_tokens": snapshot.evidence_tokens,
                             "request_preserved": snapshot.request_preserved,
                             "tool_groups_preserved": snapshot.tool_groups_preserved,
                             "over_budget": snapshot.over_budget,
@@ -264,6 +332,7 @@ class Agent:
                         duration_ms=int((time.monotonic() - started_at) * 1000),
                         context_builds=context_builds,
                         skill_selection=skill_selection,
+                        evidence_selection=evidence_selection,
                     )
                     return result
 
@@ -292,6 +361,7 @@ class Agent:
                 error_type=type(exc).__name__,
                 context_builds=context_builds,
                 skill_selection=skill_selection,
+                evidence_selection=evidence_selection,
             )
             raise
 
@@ -338,6 +408,7 @@ class Agent:
         error_type: str | None = None,
         context_builds: list[ContextSnapshot] | None = None,
         skill_selection: SkillSelection | None = None,
+        evidence_selection: SelectionResult | None = None,
     ) -> None:
         if self.run_store is None or handle is None:
             return
@@ -361,6 +432,7 @@ class Agent:
                     "metadata_chars": skill_selection.metadata_chars if skill_selection else 0,
                     "loaded_chars": skill_selection.loaded_chars if skill_selection else 0,
                 },
+                "evidence": self._evidence_report(evidence_selection),
                 "invalidated_memories": (
                     len(self.memory_manager.last_invalidated)
                     if self.memory_manager is not None
@@ -382,5 +454,42 @@ class Agent:
             "request_preserved": all(item.request_preserved for item in snapshots),
             "tool_groups_preserved": all(item.tool_groups_preserved for item in snapshots),
             "skill_items_max": max(item.skill_items for item in snapshots),
+            "evidence_items_max": max(item.evidence_items for item in snapshots),
+            "evidence_tokens_max": max(item.evidence_tokens for item in snapshots),
             "token_counter": snapshots[-1].token_counter,
+        }
+
+    @staticmethod
+    def _evidence_report(selection: SelectionResult | None) -> dict[str, Any]:
+        if selection is None:
+            return {"enabled": False}
+        return {
+            "enabled": True,
+            "selector": selection.selector,
+            "candidates": selection.candidates,
+            "selected": len(selection.selected),
+            "selected_tokens": selection.selected_tokens,
+            "token_budget": selection.token_budget,
+            "elapsed_ms": selection.elapsed_ms,
+            "cache_hits": selection.cache_hits,
+            "cache_misses": selection.cache_misses,
+            "http_requests": selection.http_requests,
+            "fallback_used": selection.fallback_used,
+            "fallback_reason": selection.fallback_reason,
+            "chunks": [
+                {
+                    "rank": rank,
+                    "id": item.chunk.id,
+                    "path": item.chunk.path,
+                    "start_line": item.chunk.start_line,
+                    "end_line": item.chunk.end_line,
+                    "source_sha256": item.chunk.source_sha256,
+                    "content_sha256": item.chunk.content_sha256,
+                    "tokens": item.chunk.token_count,
+                    "score": item.score,
+                    "relevance_score": item.relevance_score,
+                    "redundancy": item.redundancy,
+                }
+                for rank, item in enumerate(selection.selected, start=1)
+            ],
         }

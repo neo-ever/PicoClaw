@@ -30,6 +30,7 @@ class RuntimeIdentity:
     provider: str
     model: str
     tool_config_sha256: str
+    evidence_config_sha256: str
     verifier_sha256: str
     implementation_sha256: str
     digest: str
@@ -52,6 +53,27 @@ class RuntimeIdentity:
             separators=(",", ":"),
         )
         tool_digest = hashlib.sha256(tool_config.encode("utf-8")).hexdigest()
+        evidence_provider = getattr(agent, "evidence_provider", None)
+        evidence_identity = getattr(evidence_provider, "identity_payload", None)
+        evidence_payload = (
+            evidence_identity()
+            if callable(evidence_identity)
+            else {
+                "type": (
+                    f"{type(evidence_provider).__module__}.{type(evidence_provider).__qualname__}"
+                    if evidence_provider is not None
+                    else "none"
+                )
+            }
+        )
+        evidence_json = json.dumps(
+            evidence_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        evidence_digest = hashlib.sha256(evidence_json.encode("utf-8")).hexdigest()
         if verifier is not None and is_dataclass(verifier):
             verifier_payload = asdict(verifier)
         elif verifier is not None and hasattr(verifier, "__dict__"):
@@ -77,7 +99,7 @@ class RuntimeIdentity:
         verifier_digest = hashlib.sha256(verifier_json.encode("utf-8")).hexdigest()
         implementation_digest = cls._implementation_digest()
         payload = (
-            f"{runtime_version}\0{provider}\0{model}\0{tool_digest}\0"
+            f"{runtime_version}\0{provider}\0{model}\0{tool_digest}\0{evidence_digest}\0"
             f"{verifier_digest}\0{implementation_digest}"
         )
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -86,6 +108,7 @@ class RuntimeIdentity:
             provider,
             model,
             tool_digest,
+            evidence_digest,
             verifier_digest,
             implementation_digest,
             digest,
@@ -95,8 +118,9 @@ class RuntimeIdentity:
     def _implementation_digest() -> str:
         digest = hashlib.sha256()
         package_root = Path(__file__).parent
-        for path in sorted(package_root.glob("*.py")):
-            digest.update(path.name.encode("utf-8"))
+        for path in sorted(package_root.rglob("*.py")):
+            relative = path.relative_to(package_root).as_posix()
+            digest.update(relative.encode("utf-8"))
             digest.update(b"\0")
             digest.update(path.read_bytes())
             digest.update(b"\0")

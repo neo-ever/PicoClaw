@@ -25,6 +25,14 @@ dependencies = [
     "tiktoken>=0.14.0",
 ]
 
+[project.optional-dependencies]
+qwen = [
+    "accelerate>=1.2,<2",
+    "numpy>=2,<3",
+    "torch>=2.6,<3",
+    "transformers>=5.17,<6",
+]
+
 [project.urls]
 Homepage = "https://github.com/neo-ever/PicoClaw"
 Repository = "https://github.com/neo-ever/PicoClaw.git"
@@ -36,6 +44,12 @@ picoclaw-m3-demo = "picoclaw.m3_demo:main"
 picoclaw-m4-demo = "picoclaw.m4_demo:main"
 picoclaw-m5-demo = "picoclaw.m5_demo:main"
 picoclaw-m6-demo = "picoclaw.m6_demo:main"
+picoclaw-m7-demo = "picoclaw.m7_demo:main"
+picoclaw-m7b-demo = "picoclaw.m7b_demo:main"
+picoclaw-m7c-demo = "picoclaw.m7c_demo:main"
+picoclaw-qwen-delta-train = "picoclaw.qwen_delta_train:main"
+picoclaw-qwen-delta-serve = "picoclaw.qwen_delta_service:main"
+picoclaw-qwen-preflight = "picoclaw.qwen_preflight:main"
 picoclaw-real = "picoclaw.real_demo:main"
 
 [dependency-groups]

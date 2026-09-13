@@ -23,7 +23,7 @@ uv run pytest -q
 uv run picoclaw-demo
 ```
 
-不配置 API Key 也可以运行 M1、M3、M4、M5 和 M6 的确定性离线演示。真实模型配置见下文。
+不配置 API Key 也可以运行 M1、M3、M4、M5、M6 和 M7-A 的确定性离线演示。真实模型配置见下文。
 
 ## 项目定位
 
@@ -33,7 +33,7 @@ uv run picoclaw-demo
 | 具有工具边界、审批、记忆、MCP、恢复与验收的原型 | 拥有真实用户规模或线上 SLA 的商业系统 |
 | 通过固定离线实验和自动化测试验证的工程项目 | 大模型训练或效果提升百分比实验 |
 
-## 当前阶段：M6 预算化 Goal Loop、Checkpoint、Verifier 与 Benchmark
+## 当前阶段：M7-C 数据、训练与 A/B 评测闭环
 
 - 统一 `ModelResponse`、`ToolCall` 和 `ToolResult`
 - 通过 `ModelProvider` 协议隔离具体模型厂商
@@ -68,6 +68,21 @@ uv run picoclaw-demo
 - 使用 Runtime Identity 与工作区 SHA-256 Manifest 拒绝过期 Checkpoint
 - 使用 File、Command 和 Composite Verifier 检查真实工作区
 - 使用隔离 Fixture 和统一指标运行可重复 Benchmark
+- 在 Workspace 边界内按文件和行号切分代码，跳过缓存、构建目录、符号链接和常见敏感文件
+- 使用本地 BM25 风格相关度与重复惩罚，在独立 Token 预算内选择仓库证据
+- 将 Selected Evidence 作为不可信数据注入 ContextManager，不赋予 Selector 任何工具权限
+- 在 Trace 与 Report 中记录候选数、代码块、来源 SHA-256、分数、Token 和耗时
+- 选择器不可用时记录失败并降级，不阻断原有 Agent Loop
+- 通过 `/score_batch` 接入 Qwen 0.8B Selector，使用边际增益贪心选择代码块
+- 先用词法相关度缩小候选池，再分批发送，避免对整个仓库逐块调用模型
+- 使用有界内存 LRU 缓存复用 `(question, context)` 分数，缓存键不保留源码正文
+- HTTP 超时、连接失败、非法 JSON、数量不匹配或非有限分数都会自动回退词法选择
+- 默认只允许回环地址；向远程 Selector 发送仓库代码必须显式开启授权
+- Selector 类型、URL、批大小、候选池和切块配置进入 Runtime Identity，配置变化会使旧 Checkpoint 失效
+- 使用 `picoclaw-delta-v1` 统一训练与在线推理的直接 Verifier Delta 契约
+- 按任务 ID 分组切分代码领域 Pair 数据，阻止同一任务泄漏到训练集和验证集
+- 提供无需 PyTorch 的 Linear Delta 可训练基线，以及 Qwen 0.8B Regression 训练和批量服务入口
+- 使用隔离工作区和外部 Verifier 对 no-evidence、lexical、HTTP、full-context 和 learned 策略运行统一 A/B Benchmark
 
 ## 为什么从离线模型开始
 
@@ -84,6 +99,9 @@ uv run picoclaw-m3-demo
 uv run picoclaw-m4-demo
 uv run picoclaw-m5-demo
 uv run picoclaw-m6-demo
+uv run picoclaw-m7-demo
+uv run picoclaw-m7b-demo
+uv run picoclaw-m7c-demo
 ```
 
 M4离线演示会展示“首次读取、记忆命中、文件变化后重新读取”：
@@ -102,6 +120,33 @@ M6离线演示会展示“第一次写错并耗尽预算、从 Checkpoint 恢复
 
 ```powershell
 uv run picoclaw-m6-demo
+```
+
+M7-A离线演示会扫描一个小型代码仓库，在 Token 预算内选中认证代码，并在不调用读取工具的情况下把证据交给模型：
+
+```powershell
+uv run picoclaw-m7-demo
+```
+
+M7-B 离线演示使用模拟的 `/score_batch` 服务契约，展示批量打分、第二次请求缓存命中和超时词法降级：
+
+```powershell
+uv run picoclaw-m7b-demo
+```
+
+M7-C 离线演示会构造按任务隔离的 Delta 数据、训练并验证轻量基线，再运行多策略外部 Verifier Benchmark：
+
+```powershell
+uv run picoclaw-m7c-demo
+```
+
+把训练迁移到 GPU 机器前，可用预检命令一次检查依赖、CUDA、模型位置、数据 Schema、任务泄漏和标签分布：
+
+```powershell
+uv run picoclaw-qwen-preflight `
+  --model "你的Qwen模型目录或模型ID" `
+  --train .picoclaw/delta-data/train.jsonl `
+  --validation .picoclaw/delta-data/validation.jsonl
 ```
 
 M3交互演示会依次申请写文件和运行白名单命令。输入`y`批准，直接回车拒绝：
@@ -134,6 +179,39 @@ uv run picoclaw-real
 
 ```powershell
 uv run picoclaw-real --skills-dir examples/skills "总结这个代码仓库"
+```
+
+使用内置词法 Selector 预先选择仓库证据：
+
+```powershell
+uv run picoclaw-real --evidence --evidence-tokens 1200 "认证逻辑在哪里实现？"
+```
+
+`--evidence` 默认关闭，因此不会改变原有运行方式。M7-A 只使用本地词法基线，不会把仓库内容发送给额外的远程服务。
+
+接入运行在本机 `6006` 端口的 0.8B Selector：
+
+```powershell
+$env:PICOCLAW_SELECTOR_URL="http://127.0.0.1:6006"
+uv run picoclaw-real `
+  --evidence `
+  --evidence-selector http `
+  --selector-timeout 8 `
+  --selector-batch-size 8 `
+  --selector-candidate-pool 24 `
+  "认证逻辑在哪里实现？"
+```
+
+如果 Selector 位于其他主机，必须额外传入 `--allow-remote-selector`。这表示你明确同意把初筛后的仓库代码发送到该地址。
+
+使用与训练目标对齐的 Direct Delta 服务：
+
+```powershell
+uv run picoclaw-real `
+  --evidence `
+  --evidence-selector http-direct `
+  --selector-url http://127.0.0.1:6007 `
+  "认证逻辑在哪里实现？"
 ```
 
 通过文件内容验收启用真实 Goal Loop：
@@ -192,6 +270,13 @@ Ollama 模型被要求返回下面两种格式之一：
 | M4（已完成） | Token 感知上下文、三层记忆、文件哈希失效 |
 | M5（已完成） | 渐进式 Skills 与受控 MCP Adapter |
 | M6（已完成） | 有预算的 Goal Loop、Checkpoint、Verifier 与 Benchmark |
+| M7-A（已完成） | 安全代码切块、词法选择基线、Evidence 注入与选择审计 |
+| M7-B（已完成） | 0.8B Selector HTTP Adapter、批量打分、LRU 缓存、超时与词法降级 |
+| M7-C1（已完成） | 多策略隔离 Context Benchmark 和统一成本/质量指标 |
+| M7-C2（已完成） | Direct Verifier Delta 训练—推理契约与批量 HTTP Adapter |
+| M7-C3（已完成） | 代码 Pair 数据构建、Schema 校验、JSONL 和按任务分组切分 |
+| M7-C4（部分完成） | Linear Delta 已训练实跑；Qwen 0.8B 训练/服务入口完成，待 GPU 与权重运行 |
+| M7-C5（已完成） | 离线多策略 A/B、外部 Verifier 和统一 JSON 报告 |
 
 详细设计见 [docs/architecture.md](docs/architecture.md)。
 
@@ -201,10 +286,14 @@ Ollama 模型被要求返回下面两种格式之一：
 
 | 文档 | 内容 |
 | --- | --- |
-| [架构决策](docs/architecture.md) | 总体边界和 M1–M6 数据流 |
+| [架构决策](docs/architecture.md) | 总体边界和 M1–M7 数据流 |
 | [M4 上下文与记忆](docs/m4-context-and-memory.md) | Token 压缩、三层记忆、SHA 失效 |
 | [M5 Skills 与 MCP](docs/m5-skills-and-mcp.md) | 渐进式加载和受控外部工具 |
 | [M6 Goal Loop](docs/m6-goal-loop.md) | 预算、Checkpoint、Verifier、Benchmark |
+| [M7-A 上下文选择](docs/m7-context-selection.md) | 代码切块、词法选择、Evidence 注入和代码导读 |
+| [M7-B HTTP Selector](docs/m7b-http-selector.md) | 0.8B 服务契约、贪心 Delta、缓存、超时和降级 |
+| [M7-C 数据与评测闭环](docs/m7c-data-training-benchmark.md) | Direct Delta 数据、训练入口、多策略 Benchmark 与结果边界 |
+| [M7-C GPU 训练交接](docs/m7c-gpu-handoff.md) | 可选依赖、训练预检、GPU 微调、服务和最终验收步骤 |
 | [5 分钟演示脚本](docs/demo-script.md) | 面试或项目展示时的操作顺序 |
 | [简历与面试证据](docs/interview-evidence.md) | 事实边界、推荐措辞和追问答案 |
 | [本地验证记录](docs/validation-report.md) | 测试、构建和隔离安装结果 |
