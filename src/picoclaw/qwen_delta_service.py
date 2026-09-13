@@ -11,6 +11,18 @@ from typing import Any
 from .selection import format_delta_prompt
 
 
+def align_padding_config(model: Any, tokenizer: Any) -> int:
+    """Keep tokenizer and composite Qwen configs aligned for batched inference."""
+    if tokenizer.pad_token_id is None:
+        raise RuntimeError("tokenizer does not define a usable padding token")
+    pad_token_id = int(tokenizer.pad_token_id)
+    model.config.pad_token_id = pad_token_id
+    text_config = getattr(model.config, "text_config", None)
+    if text_config is not None:
+        text_config.pad_token_id = pad_token_id
+    return pad_token_id
+
+
 class QwenDeltaScorer:
     def __init__(self, model_path: str, max_length: int = 2048) -> None:
         try:
@@ -34,6 +46,7 @@ class QwenDeltaScorer:
             trust_remote_code=True,
             torch_dtype=torch.bfloat16 if self.device == "cuda" else torch.float32,
         ).to(self.device)
+        align_padding_config(self.model, self.tokenizer)
         self.model.eval()
 
     def predict(self, items: list[dict[str, str]]) -> list[float]:

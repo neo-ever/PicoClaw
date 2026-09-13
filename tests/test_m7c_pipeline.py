@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,7 +29,7 @@ from picoclaw import (
     train_linear_delta,
     write_delta_jsonl,
 )
-from picoclaw.qwen_delta_service import validate_items
+from picoclaw.qwen_delta_service import align_padding_config, validate_items
 from picoclaw.qwen_preflight import audit_datasets
 from picoclaw.tools import build_coding_registry
 
@@ -216,6 +217,15 @@ def test_qwen_service_validates_the_same_direct_delta_fields() -> None:
     assert items[0]["candidate_context"] == "def auth(): pass"
     with pytest.raises(ValueError, match="batch size"):
         validate_items({"items": []}, max_batch_size=4)
+
+
+def test_qwen_service_aligns_padding_for_composite_model() -> None:
+    model = SimpleNamespace(config=SimpleNamespace(text_config=SimpleNamespace()))
+    tokenizer = SimpleNamespace(pad_token_id=42)
+
+    assert align_padding_config(model, tokenizer) == 42
+    assert model.config.pad_token_id == 42
+    assert model.config.text_config.pad_token_id == 42
 
 
 class PatchProvider:

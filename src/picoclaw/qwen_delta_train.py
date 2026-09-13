@@ -82,6 +82,8 @@ def main() -> None:
         torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
     )
     model.config.pad_token_id = tokenizer.pad_token_id
+    if hasattr(model.config, "text_config"):
+        model.config.text_config.pad_token_id = tokenizer.pad_token_id
     if hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
 
