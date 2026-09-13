@@ -22,6 +22,7 @@
 - Qwen 0.8B Sequence Classification Regression 训练入口和真正批量推理服务。
 - M7-C 离线演示串联数据构造、训练、验证和五策略 A/B 报告。
 - `qwen` 可选依赖组、训练环境/数据预检 CLI 和 GPU 交接清单。
+- 显式声明 Qwen3.5 Trainer 的 `labels` 字段，修复验证指标缺失导致的最佳模型选择失败。
 
 ### Known limitations
 

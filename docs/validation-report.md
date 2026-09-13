@@ -50,6 +50,7 @@ M7-B 验证覆盖的是 HTTP 编排、批量、缓存、响应校验、网络安
 | 策略对照 | `uv run picoclaw-m7c-demo` | 5 策略 × 3 隔离案例，外部 File Verifier 全部通过 |
 | 0.8B 资源审计 | `picoclaw-qwen-preflight` | uv 环境缺少训练依赖、无 NVIDIA GPU、无本地模型权重；数据 Schema/隔离/标签平衡通过，未运行真实微调 |
 | GPU 交接 | 可选依赖、Preflight CLI、操作清单 | 训练前依赖、CUDA、模型、数据泄漏和标签检查已可自动执行 |
+| AutoDL 首次实跑 | Qwen3.5-0.8B-Base，18/6 合成数据 | 训练完成 5/5 步；发现并修复 Transformers 5.17 未自动推断通用分类器 `labels` 的验证指标问题 |
 
 合成 Linear 指标只证明训练与评测管道能发现刻意构造的相关代码块，不是 Qwen 指标，也不是公开 Coding Agent Benchmark 结果。
 

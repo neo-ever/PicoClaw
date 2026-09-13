@@ -120,6 +120,10 @@ def main() -> None:
         greater_is_better=True,
         bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
         gradient_checkpointing=True,
+        # Qwen3.5's generic classifier exposes labels through **kwargs. Newer
+        # Trainer versions therefore cannot infer the label field from the
+        # forward signature unless it is declared explicitly.
+        label_names=["labels"],
         seed=args.seed,
         report_to=[],
     )
