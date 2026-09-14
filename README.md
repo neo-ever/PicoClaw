@@ -33,7 +33,7 @@ uv run picoclaw-demo
 | 具有工具边界、审批、记忆、MCP、恢复与验收的原型 | 拥有真实用户规模或线上 SLA 的商业系统 |
 | 通过固定离线实验和自动化测试验证的工程项目 | 大模型训练或效果提升百分比实验 |
 
-## 当前阶段：M7-C 数据、训练与 A/B 评测闭环
+## 当前阶段：M8 可发布收尾版
 
 - 统一 `ModelResponse`、`ToolCall` 和 `ToolResult`
 - 通过 `ModelProvider` 协议隔离具体模型厂商
@@ -83,6 +83,9 @@ uv run picoclaw-demo
 - 按任务 ID 分组切分代码领域 Pair 数据，阻止同一任务泄漏到训练集和验证集
 - 提供无需 PyTorch 的 Linear Delta 可训练基线，以及 Qwen 0.8B Regression 训练和批量服务入口
 - 使用隔离工作区和外部 Verifier 对 no-evidence、lexical、HTTP、full-context 和 learned 策略运行统一 A/B Benchmark
+- 提供无需 Shell 权限的 `list_files` 与 `search_text` 只读发现工具，返回结果数量和行内容均有上限
+- `read_file` 支持 `start_line`、`end_line` 与 `max_chars`，避免整文件读取挤占上下文
+- 仓库扫描会剪枝 `.venv-autodl`、`.venv-*`、`venv-*` 等虚拟环境，并继续屏蔽常见密钥文件和符号链接
 
 ## 为什么从离线模型开始
 
@@ -275,8 +278,9 @@ Ollama 模型被要求返回下面两种格式之一：
 | M7-C1（已完成） | 多策略隔离 Context Benchmark 和统一成本/质量指标 |
 | M7-C2（已完成） | Direct Verifier Delta 训练—推理契约与批量 HTTP Adapter |
 | M7-C3（已完成） | 代码 Pair 数据构建、Schema 校验、JSONL 和按任务分组切分 |
-| M7-C4（部分完成） | Linear Delta 已训练实跑；Qwen 0.8B 训练/服务入口完成，待 GPU 与权重运行 |
+| M7-C4（已完成） | Linear Delta 与 Qwen3.5-0.8B Head-only 学习探针已在 AutoDL RTX 4090 实跑 |
 | M7-C5（已完成） | 离线多策略 A/B、外部 Verifier 和统一 JSON 报告 |
+| M8（已完成） | 安全文件发现、按行范围读取、虚拟环境剪枝和真实运行问题复盘 |
 
 详细设计见 [docs/architecture.md](docs/architecture.md)。
 

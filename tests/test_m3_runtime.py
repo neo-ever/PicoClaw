@@ -94,6 +94,48 @@ def test_shell_runs_allowlisted_command_without_shell_interpreter(tmp_path: Path
     assert "pytest" in result
 
 
+def test_read_only_discovery_tools_are_bounded_and_skip_generated_files(tmp_path: Path) -> None:
+    source = tmp_path / "src" / "agent.py"
+    source.parent.mkdir()
+    source.write_text("first\nclass AgentLoop:\nthird\n", encoding="utf-8")
+    dependency = tmp_path / ".venv-autodl" / "lib"
+    dependency.mkdir(parents=True)
+    (dependency / "noise.py").write_text("class AgentLoop: pass\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("SECRET=AgentLoop\n", encoding="utf-8")
+    registry = build_coding_registry(tmp_workspace(tmp_path), approval_mode="never")
+
+    listed = registry.execute(ToolCall("list-1", "list_files", {"pattern": "*.py"}))
+    searched = registry.execute(
+        ToolCall("search-1", "search_text", {"query": "AgentLoop", "file_pattern": "*.py"})
+    )
+    ranged = registry.execute(
+        ToolCall(
+            "read-1",
+            "read_file",
+            {"path": "src/agent.py", "start_line": 2, "end_line": 2},
+        )
+    )
+
+    assert listed.is_error is False
+    assert listed.content == "src/agent.py"
+    assert searched.is_error is False
+    assert searched.content == "src/agent.py:2: class AgentLoop:"
+    assert ranged.is_error is False
+    assert ranged.content == "class AgentLoop:\n"
+    assert all(result.metadata["risk"] == "read_only" for result in (listed, searched, ranged))
+
+
+def test_search_text_cannot_escape_workspace(tmp_path: Path) -> None:
+    registry = build_coding_registry(tmp_workspace(tmp_path), approval_mode="never")
+
+    result = registry.execute(
+        ToolCall("search-1", "search_text", {"query": "secret", "path": ".."})
+    )
+
+    assert result.is_error is True
+    assert "path escapes workspace" in result.content
+
+
 def test_agent_persists_trace_and_report_for_successful_write(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [

@@ -53,10 +53,26 @@ M7-B 验证覆盖的是 HTTP 编排、批量、缓存、响应校验、网络安
 | AutoDL 首次实跑 | Qwen3.5-0.8B-Base，18/6 合成数据 | 训练完成 5/5 步；发现并修复 Transformers 5.17 未自动推断通用分类器 `labels` 的验证指标问题 |
 | AutoDL 批量推理 | Qwen3.5-0.8B-Base，2 条 Tensor Batch | 修复复合配置 PAD Token 后返回 2 个真实 Delta；首次模型 Sign Accuracy 为 50%，未达到质量目标 |
 
+## M7-C GPU 学习探针与 M8 收尾验证（2026-09-13 至 2026-09-14）
+
+| 检查 | 配置 | 结果 |
+| --- | --- | --- |
+| Head-only 训练 | Qwen3.5-0.8B-Base；300 train / 100 validation；5 epochs | 仅训练 1,024 / 852,986,944 参数；112.74 秒完成 |
+| 合成验证 | Direct Verifier Delta Regression | Sign Accuracy 100%、MAE 0.4158、RMSE 0.4306、Pearson 0.9943 |
+| 批量服务 | `/predict_delta_batch`，CUDA，batch=2 | 相关合成样本 `+0.5078`，无关合成样本 `-1.4922` |
+| Selector 接入 | `DirectDeltaHttpSelector` | `fallback_used=false`，选中相关样本，证明训练—服务—Runtime 链路贯通 |
+| 真实仓库负例 | 中文仓库介绍任务 | 暴露 `.venv-autodl` 未剪枝、Selector 耗时 514.37 秒并选择第三方依赖的问题 |
+| 无 Selector Agent 复测 | DeepSeek compatible provider，只读仓库介绍 | 第 6 个模型步骤完成，但共 19 次工具调用、11 次失败、累计 42,069 Token |
+| M8 自动化测试 | `uv run pytest -q` | 73 passed |
+| M8 静态检查 | `uv run ruff check src tests` | 通过 |
+
+M8 根据真实运行负例增加了虚拟环境目录剪枝、安全文件发现和范围读取。由于 GPU 实例已关机，尚未声称这些改动已经带来真实模型端的量化下降；上表保留优化前数据作为后续复测基线。
+
 合成 Linear 指标只证明训练与评测管道能发现刻意构造的相关代码块，不是 Qwen 指标，也不是公开 Coding Agent Benchmark 结果。
 
 ## 结果边界
 
 - 这是本地离线验证记录，不代表生产可用性、线上 SLA 或真实用户规模。
+- Head-only 的 100% Sign Accuracy 来自按任务隔离的合成数据，只能证明回归头在该数据分布上可学习。
 - GitHub Actions 已配置 Python 3.12/3.13 测试矩阵，但远端 CI 只有推送仓库后才会产生运行记录。
 - M6 Benchmark 的 50% 是由一个通过案例和一个故意失败案例构成，用于证明 Verifier 会拒绝模型的无证据成功声明，不是模型能力评测分数。

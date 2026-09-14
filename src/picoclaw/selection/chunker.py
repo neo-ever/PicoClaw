@@ -197,7 +197,7 @@ class RepositoryChunker:
             relative = path.resolve().relative_to(self.workspace.root)
         except ValueError:
             return False
-        if any(part.lower() in self.EXCLUDED_DIRECTORIES for part in relative.parts[:-1]):
+        if any(self.workspace.is_excluded_directory(part) for part in relative.parts[:-1]):
             return False
         name = path.name.lower()
         if name in self.SENSITIVE_NAMES or name.startswith(".env."):

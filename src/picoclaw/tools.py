@@ -207,17 +207,70 @@ def _read_file_tool(workspace: Workspace) -> Tool:
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Workspace-relative path"},
+                "start_line": {"type": "integer", "description": "First 1-based line"},
+                "end_line": {"type": "integer", "description": "Optional final 1-based line"},
+                "max_chars": {
+                    "type": "integer",
+                    "description": "Maximum returned characters, up to 30000",
+                },
             },
             "required": ["path"],
             "additionalProperties": False,
         },
-        handler=workspace.read_text,
+        handler=workspace.read_text_range,
     )
+
+
+def _list_files_tool(workspace: Workspace) -> Tool:
+    return Tool(
+        name="list_files",
+        description=(
+            "List repository files with a glob pattern. Excludes virtual environments, "
+            "generated directories, symlinks, and common secret files."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string", "description": "Glob such as '*.py'"},
+                "max_results": {"type": "integer", "description": "Result limit from 1 to 500"},
+            },
+            "additionalProperties": False,
+        },
+        handler=workspace.list_files,
+    )
+
+
+def _search_text_tool(workspace: Workspace) -> Tool:
+    return Tool(
+        name="search_text",
+        description=(
+            "Case-insensitively search text inside the repository without a shell. "
+            "Returns path, line number, and a bounded line excerpt."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Literal text to find"},
+                "path": {"type": "string", "description": "Workspace-relative search scope"},
+                "file_pattern": {"type": "string", "description": "Glob such as '*.py'"},
+                "max_results": {"type": "integer", "description": "Result limit from 1 to 100"},
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+        handler=workspace.search_text,
+    )
+
+
+def _register_read_only_tools(registry: ToolRegistry, workspace: Workspace) -> None:
+    registry.register(_read_file_tool(workspace))
+    registry.register(_list_files_tool(workspace))
+    registry.register(_search_text_tool(workspace))
 
 
 def build_read_only_registry(workspace: Workspace) -> ToolRegistry:
     registry = ToolRegistry()
-    registry.register(_read_file_tool(workspace))
+    _register_read_only_tools(registry, workspace)
     return registry
 
 
@@ -229,7 +282,7 @@ def build_coding_registry(
     """Build the M3 local coding tool set under one approval policy."""
 
     registry = ToolRegistry(Approver(approval_mode, approval_prompt))
-    registry.register(_read_file_tool(workspace))
+    _register_read_only_tools(registry, workspace)
     registry.register(
         Tool(
             name="write_file",

@@ -58,6 +58,9 @@ def test_chunker_respects_workspace_filters_and_file_hashes(tmp_path: Path) -> N
     (tmp_path / ".env").write_text("API_KEY=secret", encoding="utf-8")
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "config").write_text("private", encoding="utf-8")
+    dependency = tmp_path / ".venv-autodl" / "lib" / "site-packages"
+    dependency.mkdir(parents=True)
+    (dependency / "asyncio_selector.py").write_text("third_party = True\n", encoding="utf-8")
     counter = TokenCounter("unknown-local-model")
     chunker = RepositoryChunker(
         Workspace(tmp_path),

@@ -25,11 +25,14 @@
 - 显式声明 Qwen3.5 Trainer 的 `labels` 字段，修复验证指标缺失导致的最佳模型选择失败。
 - 同步 Tokenizer、Qwen3.5 顶层配置与文本配置的 PAD Token，支持真正的批量回归推理。
 - Qwen 训练新增 `--head-only` 冻结骨干选项，M7-C Demo 支持扩大合成任务规模，用于低成本验证新回归头的可学习性。
+- 新增安全的 `list_files`、`search_text` 工具，避免模型依赖不在命令白名单内的 `grep`/`rg`。
+- `read_file` 新增行范围与最大字符数参数，降低无关工具结果进入上下文的概率。
+- 仓库遍历剪枝命名虚拟环境目录，包括 `.venv-autodl`、`.venv-*` 和 `venv-*`。
 
 ### Known limitations
 
-- Direct Delta 契约已经统一训练与在线推理目标，但尚未在正式代码领域数据上验证实际提升。
-- 当前机器没有 CUDA GPU，项目 uv 环境没有 PyTorch/Transformers，且没有本地 0.8B 权重，因此尚无真实 Qwen 代码领域微调指标。
+- Direct Delta 契约已经统一训练与在线推理目标，并完成合成数据 GPU 学习探针，但尚未在公开或人工标注的真实代码领域数据上验证提升。
+- AutoDL Head-only 实验只训练 1024 个回归头参数；100% 合成验证方向准确率不能外推为真实 Coding Agent 准确率。
 - M7-C 演示数据和 Reader 是确定性合成 Fixture，只证明闭环实现，不代表真实 Coding Agent 提升。
 
 ## 0.1.0 - 2026-09-06
